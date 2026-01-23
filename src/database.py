@@ -1,14 +1,20 @@
 import sqlite3
+import os
 from datetime import datetime, timezone
 
 class SecurityDB:
-    def __init__(self, db_name="security_events.db"):
-        self.db_name = db_name
+    def __init__(self, db_folder="db", db_name="security_events.db"):
+        self.db_folder = db_folder
+        if not os.path.exists(self.db_folder):
+            os.makedirs(self.db_folder)
+            print(f"📁 Created directory: {self.db_folder}")
+
+        self.db_path = os.path.join(self.db_folder, db_name)
         self.setup_db()
 
     def setup_db(self):
-        """Creates the tables."""
-        conn = sqlite3.connect(self.db_name)
+        """Creates the table if it doesn't exist."""
+        conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS alerts (
@@ -23,8 +29,8 @@ class SecurityDB:
         conn.close()
 
     def save_alert(self, detection_result):
-        """Saves the event using UTC time to match SQLite 'now'"""
-        conn = sqlite3.connect(self.db_name)
+        """Saves the event to the database in the db/ folder."""
+        conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO alerts (timestamp, rule_name, ip_address, message)
@@ -34,15 +40,10 @@ class SecurityDB:
         conn.close()
 
     def get_ip_count(self, ip_address, minutes=5):
-        """Counts alerts within the last X minutes using UTC"""
-        conn = sqlite3.connect(self.db_name)
+        """Counts alerts within the last X minutes."""
+        conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-
-        query = f"""
-            SELECT COUNT(*) FROM alerts 
-            WHERE ip_address = ? 
-            AND timestamp > datetime('now', '-{minutes} minutes')
-        """
+        query = f"SELECT COUNT(*) FROM alerts WHERE ip_address = ? AND timestamp > datetime('now', '-{minutes} minutes')"
 
         try:
             cursor.execute(query, (ip_address,))
