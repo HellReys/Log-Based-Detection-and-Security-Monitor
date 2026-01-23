@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 
 class SecurityDB:
     def __init__(self, db_name="security_events.db"):
@@ -23,24 +23,34 @@ class SecurityDB:
         conn.close()
 
     def save_alert(self, detection_result):
-        """It records the detected attack."""
+        """Saves the event using UTC time to match SQLite 'now'"""
         conn = sqlite3.connect(self.db_name)
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO alerts (timestamp, rule_name, ip_address, message)
             VALUES (?, ?, ?, ?)
-        ''', (datetime.now(), detection_result['rule'], detection_result['ip'], detection_result['message']))
+        ''', (datetime.now(timezone.utc), detection_result['rule'], detection_result['ip'], detection_result['message']))
         conn.commit()
         conn.close()
 
     def get_ip_count(self, ip_address, minutes=5):
-        """How many times has this IP address made an error in the last X minutes?"""
+        """Counts alerts within the last X minutes using UTC"""
         conn = sqlite3.connect(self.db_name)
         cursor = conn.cursor()
-        cursor.execute('''
+
+        query = f"""
             SELECT COUNT(*) FROM alerts 
-            WHERE ip_address = ? AND timestamp > datetime('now', '-? minutes')
-        ''', (ip_address, minutes))
-        count = cursor.fetchone()[0]
-        conn.close()
-        return count
+            WHERE ip_address = ? 
+            AND timestamp > datetime('now', '-{minutes} minutes')
+        """
+
+        try:
+            cursor.execute(query, (ip_address,))
+            count = cursor.fetchone()[0]
+            return count
+        except Exception as e:
+            print(f"❌ Database Query Error: {e}")
+            return 0
+        finally:
+            conn.close()
+            return count
