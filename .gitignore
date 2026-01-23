@@ -1,19 +1,18 @@
-.idea
-/.idea
+.idea/
 
-.venv
-/venv
+
+.venv/
 venv/
 
+
 .env
-/env
+.env.*
+!.env.example
 
 __pycache__/
 *.pyc
 .pytest_cache/
 
-tests
-/tests
+test_logs/
 
-db
-/db
+db/
